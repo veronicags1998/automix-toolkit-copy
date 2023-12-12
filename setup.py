@@ -22,6 +22,6 @@ setup(
         "auraloss",
         "wget",
         "pyloudnorm",
-        "sklearn",
+        "scikit-learn",
     ],
 )
