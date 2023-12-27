@@ -19,7 +19,7 @@ setup(
         "matplotlib",
         "pedalboard",
         "scipy",
-        "auraloss",
+        "auraloss[all]",
         "wget",
         "pyloudnorm",
         "scikit-learn",
