@@ -26,6 +26,7 @@ class System(pl.LightningModule):
 
         self.recon_losses = torch.nn.ModuleDict()
         for recon_loss in self.hparams.recon_losses:
+            
             if recon_loss == "mrstft":
                 self.recon_losses[recon_loss] = auraloss.freq.MultiResolutionSTFTLoss(
                     fft_sizes=[512, 2048, 8192],
@@ -46,6 +47,8 @@ class System(pl.LightningModule):
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
                 )
+            elif recon_loss == "firf":
+                self.recon_losses[recon_loss] = auraloss.perceptual.FIRFilter()
             else:
                 raise RuntimeError(f"Invalid reconstruction loss: {recon_loss}")
 
