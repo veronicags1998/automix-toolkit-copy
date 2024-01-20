@@ -48,6 +48,8 @@ class System(pl.LightningModule):
                     fft_sizes=[4096, 1024, 256],
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
+                    sample_rate = 44100.0,
+                    perceptual_weighting=True,
                 )
             else:
                 raise RuntimeError(f"Invalid reconstruction loss: {recon_loss}")
