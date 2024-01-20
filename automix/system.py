@@ -36,8 +36,6 @@ class System(pl.LightningModule):
                     w_phs=0.0,
                     w_lin_mag=1.0,
                     w_log_mag=1.0,
-                    sample_rate = 44100.0,
-                    perceptual_weighting=True,
                 )
             elif recon_loss == "l1":
                 self.recon_losses[recon_loss] = torch.nn.L1Loss()
@@ -63,8 +61,6 @@ class System(pl.LightningModule):
             w_phs=0.0,
             w_lin_mag=1.0,
             w_log_mag=1.0,
-            sample_rate = 44100.0,
-            perceptual_weighting=True,
         )
 
     def forward(self, x: torch.Tensor, track_mask: torch.Tensor = None) -> torch.Tensor:
