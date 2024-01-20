@@ -36,7 +36,7 @@ class System(pl.LightningModule):
                     w_phs=0.0,
                     w_lin_mag=1.0,
                     w_log_mag=1.0,
-                    sample_rate = 44100,
+                    sample_rate = 44100.0,
                     perceptual_weighting=True,
                 )
             elif recon_loss == "l1":
@@ -48,11 +48,9 @@ class System(pl.LightningModule):
                     fft_sizes=[4096, 1024, 256],
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
-                    sample_rate = 44100,
+                    sample_rate = 44100.0,
                     perceptual_weighting=True,
                 )
-            elif recon_loss == "firf":
-                self.recon_losses[recon_loss] = auraloss.perceptual.FIRFilter()
             else:
                 raise RuntimeError(f"Invalid reconstruction loss: {recon_loss}")
 
@@ -65,6 +63,8 @@ class System(pl.LightningModule):
             w_phs=0.0,
             w_lin_mag=1.0,
             w_log_mag=1.0,
+            sample_rate = 44100.0,
+            perceptual_weighting=True,
         )
 
     def forward(self, x: torch.Tensor, track_mask: torch.Tensor = None) -> torch.Tensor:
