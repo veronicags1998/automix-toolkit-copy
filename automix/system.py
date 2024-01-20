@@ -36,6 +36,7 @@ class System(pl.LightningModule):
                     w_phs=0.0,
                     w_lin_mag=1.0,
                     w_log_mag=1.0,
+                    sample_rate = 44100,
                     perceptual_weighting=True,
                 )
             elif recon_loss == "l1":
