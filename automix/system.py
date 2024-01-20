@@ -48,6 +48,7 @@ class System(pl.LightningModule):
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
                     perceptual_weighting=True,
+                    sample_rate = 44100,
                 )
             elif recon_loss == "firf":
                 self.recon_losses[recon_loss] = auraloss.perceptual.FIRFilter()
