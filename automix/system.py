@@ -37,7 +37,6 @@ class System(pl.LightningModule):
                     w_lin_mag=1.0,
                     w_log_mag=1.0,
                     sample_rate = 44100.0,
-                    perceptual_weighting=True,
                 )
             elif recon_loss == "l1":
                 self.recon_losses[recon_loss] = torch.nn.L1Loss()
@@ -49,7 +48,6 @@ class System(pl.LightningModule):
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
                     sample_rate = 44100.0,
-                    perceptual_weighting=True,
                 )
             else:
                 raise RuntimeError(f"Invalid reconstruction loss: {recon_loss}")
