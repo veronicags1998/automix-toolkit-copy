@@ -1,5 +1,6 @@
 import torch
 import torchaudio
+import pedalboard
 
 from automix.utils import restore_from_0to1
 
