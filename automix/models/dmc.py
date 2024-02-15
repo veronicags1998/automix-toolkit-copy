@@ -256,11 +256,9 @@ class Mixer(torch.nn.Module):
 
         # ------------- apply eq_gain -------------
         gain_eq = p[..., 2]  # get gain parameter
-        print(gain_eq)
         gain_eq = restore_from_0to1(gain_eq, self.min_gain_dB, self.max_gain_dB)
-        print(gain_eq)
         #gain_lin_eq = 10 ** (gain_eq / 20.0)  # convert gain from dB scale to linear
-        eq = pedalboard.PeakFilter(gain_db= gain_eq)
+        eq = pedalboard.PeakFilter(gain_db = gain_eq[0])
         x = eq(x, sample_rate = self.sample_rate)
         
         # ----------------- apply mix -------------
