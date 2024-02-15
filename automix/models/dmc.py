@@ -213,8 +213,10 @@ class Mixer(torch.nn.Module):
         max_gain_dB: int = 24.0,
     ) -> None:
         super().__init__()
-        self.num_params = 2
-        self.param_names = ["Gain dB", "Pan"]
+        #self.num_params = 2
+        self.num_params = 3
+        #self.param_names = ["Gain dB", "Pan"]
+        self.param_names = ["Gain dB", "Pan", "Eq_Gain"]
         self.sample_rate = sample_rate
         self.min_gain_dB = min_gain_dB
         self.max_gain_dB = max_gain_dB
@@ -251,6 +253,13 @@ class Mixer(torch.nn.Module):
         pan_gains_lin = pan_gains_lin.view(bs, num_tracks, 2, 1)  # reshape for multiply
         x = x * pan_gains_lin  # (bs, num_tracks, 2, seq_len)
 
+        # ------------- apply eq_gain -------------
+        gain_eq = p[..., 2]  # get gain parameter
+        gain_eq = restore_from_0to1(gain_eq, self.min_gain_dB, self.max_gain_dB)
+        gain_lin_eq = 10 ** (gain_eq / 20.0)  # convert gain from dB scale to linear
+        eq = pedalboard.PeakFilter(gain_db= gain_lin_eq)
+        x = eq(x, sample_rate = self.sample_rate)
+        
         # ----------------- apply mix -------------
         # generate a mix for each batch item by summing stereo tracks
         y = torch.sum(x, dim=1)  # (bs, 2, seq_len)
