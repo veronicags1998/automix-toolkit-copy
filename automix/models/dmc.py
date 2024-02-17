@@ -263,7 +263,7 @@ class Mixer(torch.nn.Module):
         for i in range(bs):
           for j in range(num_tracks):
             eq = pedalboard.PeakFilter(gain_db = gain_eq[i][j])
-            x[i][j] = torch.from_numpy(eq(x_copy.cpu().numpy(), sample_rate = self.sample_rate))
+            x[i][j] = torch.from_numpy(eq(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
         
         # ----------------- apply mix -------------
         # generate a mix for each batch item by summing stereo tracks
