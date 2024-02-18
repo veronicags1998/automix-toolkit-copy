@@ -212,16 +212,20 @@ class Mixer(torch.nn.Module):
         sample_rate: float,
         min_gain_dB: int = -48.0,
         max_gain_dB: int = 24.0,
+        min_eq_gain_dB: int = -6.0,
+        max_eq_gain_dB: int = 6.0,        
     ) -> None:
         super().__init__()
         #self.num_params = 2
         self.num_params = 3
         #self.param_names = ["Gain dB", "Pan"]
-        self.param_names = ["Gain dB", "Pan", "Eq_Gain"]
+        self.param_names = ["Gain dB", "Eq_Gain", "Pan"]
         self.sample_rate = sample_rate
         self.min_gain_dB = min_gain_dB
         self.max_gain_dB = max_gain_dB
-
+        self.min_eq_gain_dB = min_eq_gain_dB
+        self.max_eq_gain_dB = max_eq_gain_dB
+        
     def forward(self, x: torch.Tensor, p: torch.Tensor):
         """Generate a mix of stems given mixing parameters normalized to (0,1).
 
@@ -241,22 +245,9 @@ class Mixer(torch.nn.Module):
         gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
         x = x * gain_lin  # apply gain (bs, num_tracks, seq_len)
 
-        # ------------- apply panning -------------
-        # expand mono stems to stereo, then apply panning
-        x = x.view(bs, num_tracks, 1, -1)  # (bs, num_tracks, 1, seq_len)
-        x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
-
-        pan = p[..., 1]  # get pan parameter
-        pan_theta = pan * torch.pi / 2
-        left_gain = torch.cos(pan_theta)
-        right_gain = torch.sin(pan_theta)
-        pan_gains_lin = torch.stack([left_gain, right_gain], dim=-1)
-        pan_gains_lin = pan_gains_lin.view(bs, num_tracks, 2, 1)  # reshape for multiply
-        x = x * pan_gains_lin  # (bs, num_tracks, 2, seq_len)
-
         # ------------- apply eq_gain -------------
-        gain_eq = p[..., 2]  # get gain parameter
-        gain_eq = restore_from_0to1(gain_eq, self.min_gain_dB, self.max_gain_dB)
+        gain_eq = p[..., 1]  # get gain parameter
+        gain_eq = restore_from_0to1(gain_eq, self.min_eq_gain_dB, self.max_eq_gain_dB)
         x_copy = x.detach().clone()
         i = 0
         j = 0
@@ -264,6 +255,20 @@ class Mixer(torch.nn.Module):
           for j in range(num_tracks):
             eq = pedalboard.PeakFilter(gain_db = gain_eq[i][j])
             x[i][j] = torch.from_numpy(eq(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
+
+        # ------------- apply panning -------------
+        # expand mono stems to stereo, then apply panning
+        x = x.view(bs, num_tracks, 1, -1)  # (bs, num_tracks, 1, seq_len)
+        x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
+
+        pan = p[..., 2]  # get pan parameter
+        pan_theta = pan * torch.pi / 2
+        left_gain = torch.cos(pan_theta)
+        right_gain = torch.sin(pan_theta)
+        pan_gains_lin = torch.stack([left_gain, right_gain], dim=-1)
+        pan_gains_lin = pan_gains_lin.view(bs, num_tracks, 2, 1)  # reshape for multiply
+        x = x * pan_gains_lin  # (bs, num_tracks, 2, seq_len)
+
         
         # ----------------- apply mix -------------
         # generate a mix for each batch item by summing stereo tracks
@@ -272,8 +277,8 @@ class Mixer(torch.nn.Module):
         p = torch.cat(
             (
                 gain_dB.view(bs, num_tracks, 1),
-                pan.view(bs, num_tracks, 1),
                 gain_eq.view(bs, num_tracks, 1),
+                pan.view(bs, num_tracks, 1),
             ),
             dim=-1,
         )
