@@ -182,11 +182,11 @@ class System(pl.LightningModule):
                 ],
             )
         elif self.hparams.schedule == "reduce_on_plateau":
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 5)
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 10, threshold = 0.2)
         else:
             return optimizer
 
-        lr_schedulers = {"scheduler": scheduler, "interval": "epoch", "frequency": 1}
+        lr_schedulers = {"scheduler": scheduler, "interval": "epoch", "frequency": 1, "monitor": 'train/loss'}
 
         return [optimizer], lr_schedulers
 
