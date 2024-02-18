@@ -48,6 +48,7 @@ class System(pl.LightningModule):
                     hop_sizes=[2048, 512, 128],
                     win_lengths=[4096, 1024, 256],
                     sample_rate = 44100.0,
+                    perceptual_weighting = True,
                 )
             else:
                 raise RuntimeError(f"Invalid reconstruction loss: {recon_loss}")
@@ -180,6 +181,8 @@ class System(pl.LightningModule):
                     int(self.hparams.max_epochs * 0.95),
                 ],
             )
+        elif self.hparams.schedule == "reduce_on_plateau":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 5)
         else:
             return optimizer
 
