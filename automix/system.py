@@ -182,7 +182,7 @@ class System(pl.LightningModule):
                 ],
             )
         elif self.hparams.schedule == "reduce_on_plateau":
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 10, threshold = 0.1)
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = 20, threshold = 0.01)
         else:
             return optimizer
 
