@@ -227,8 +227,8 @@ class Mixer(torch.nn.Module):
         self.max_gain_dB = max_gain_dB
         self.min_eq_gain_dB = min_eq_gain_dB
         self.max_eq_gain_dB = max_eq_gain_dB
-        self.min_comp_ts_dB = min_comp_gain_dB
-        self.max_comp_ts_dB = max_comp_gain_dB
+        self.min_comp_ts_dB = min_comp_ts_dB
+        self.max_comp_ts_dB = max_comp_ts_dB
         
     def forward(self, x: torch.Tensor, p: torch.Tensor):
         """Generate a mix of stems given mixing parameters normalized to (0,1).
