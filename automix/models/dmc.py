@@ -218,10 +218,9 @@ class Mixer(torch.nn.Module):
         max_comp_ts_dB = 0.0,
     ) -> None:
         super().__init__()
-        #self.num_params = 2
+        
         self.num_params = 7
-        #self.param_names = ["Gain dB", "Pan"]
-        self.param_names = ["Gain In dB", "Eq Low Gain", "Eq Mid Gain", "Eq High Gain", "Comp Threshold", "Pan", "Gain Out dB"]
+        self.param_names = ["Gain In dB", "Eq Low Gain", "Eq Mid Gain", "Eq High Gain", "Comp Threshold", "Gain Out dB", "Pan"]
         self.sample_rate = sample_rate
         self.min_gain_dB = min_gain_dB
         self.max_gain_dB = max_gain_dB
@@ -266,34 +265,34 @@ class Mixer(torch.nn.Module):
         j = 0
         for i in range(bs):
           for j in range(num_tracks):
-            board = Pedalboard([
-                PeakFilter(gain_db = eq_low_gain_dB[i][j], cutoff_frequency_hz = 160),
-                PeakFilter(gain_db = eq_mid_gain_dB[i][j], cutoff_frequency_hz = 650),
-                HighShelfFilter(gain_db = eq_high_gain_dB[i][j], cutoff_frequency_hz = 2500),
-                Compressor(threshold_db = comp_ts_dB[i][j], attack_ms = 16, release_ms = 160),
+            board = pedalboard.Pedalboard([
+                pedalboard.PeakFilter(gain_db = eq_low_gain_dB[i][j], cutoff_frequency_hz = 160),
+                pedalboard.PeakFilter(gain_db = eq_mid_gain_dB[i][j], cutoff_frequency_hz = 650),
+                pedalboard.HighShelfFilter(gain_db = eq_high_gain_dB[i][j], cutoff_frequency_hz = 2500),
+                pedalboard.Compressor(threshold_db = comp_ts_dB[i][j], attack_ms = 16, release_ms = 160),
             ])
             
             x[i][j] = torch.from_numpy(board(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
+
+        # ------------- apply out gain -------------
+        gain_out_dB = p[..., 5]  # get gain parameter
+        gain_out_dB = restore_from_0to1(gain_out_dB, self.min_gain_dB, self.max_gain_dB)
+        gain_lin = 10 ** (gain_out_dB / 20.0)  # convert gain from dB scale to linear
+        gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
+        x = x * gain_lin  # apply gain (bs, num_tracks, seq_len)
 
         # ------------- apply panning -------------
         # expand mono stems to stereo, then apply panning
         x = x.view(bs, num_tracks, 1, -1)  # (bs, num_tracks, 1, seq_len)
         x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
 
-        pan = p[..., 5]  # get pan parameter
+        pan = p[..., 6]  # get pan parameter
         pan_theta = pan * torch.pi / 2
         left_gain = torch.cos(pan_theta)
         right_gain = torch.sin(pan_theta)
         pan_gains_lin = torch.stack([left_gain, right_gain], dim=-1)
         pan_gains_lin = pan_gains_lin.view(bs, num_tracks, 2, 1)  # reshape for multiply
         x = x * pan_gains_lin  # (bs, num_tracks, 2, seq_len)
-
-        # ------------- apply out gain -------------
-        gain_out_dB = p[..., 6]  # get gain parameter
-        gain_out_dB = restore_from_0to1(gain_out_dB, self.min_gain_dB, self.max_gain_dB)
-        gain_lin = 10 ** (gain_out_dB / 20.0)  # convert gain from dB scale to linear
-        gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
-        x = x * gain_lin  # apply gain (bs, num_tracks, seq_len)
 
         
         # ----------------- apply mix -------------
@@ -307,8 +306,8 @@ class Mixer(torch.nn.Module):
                 eq_mid_gain_dB.view(bs, num_tracks, 1),
                 eq_high_gain_dB.view(bs, num_tracks, 1),
                 comp_ts_dB.view(bs, num_tracks, 1),
-                pan.view(bs, num_tracks, 1),
                 gain_out_dB.view(bs, num_tracks, 1),
+                pan.view(bs, num_tracks, 1),
             ),
             dim=-1,
         )
