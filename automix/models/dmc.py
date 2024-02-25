@@ -212,15 +212,38 @@ class Mixer(torch.nn.Module):
         sample_rate: float,
         min_gain_dB: int = -48.0,
         max_gain_dB: int = 12.0,
-        min_eq_gain_dB: int = -5.0,
-        max_eq_gain_dB: int = 5.0,   
-        min_comp_ts_dB = -48.0,
-        max_comp_ts_dB = 0.0,
+        min_eq_gain_dB: int = -15.0,
+        max_eq_gain_dB: int = 15.0,   
+        min_comp_ts_dB = -20.0,
+        max_comp_ts_dB = 10.0,
     ) -> None:
         super().__init__()
         
         self.num_params = 7
-        self.param_names = ["Gain In dB", "Eq Low Gain", "Eq Mid Gain", "Eq High Gain", "Comp Threshold", "Gain Out dB", "Pan"]
+        self.param_names = ["Gain In dB", 
+                            "High Pass Cutoff", 
+                            "Low Pass Cutoff", 
+                            "High Shelf Cutoff",
+                            "High Shelf Gain",
+                            "Low Shelf Cutoff",
+                            "Low Shelf Gain",
+                            "High-Mid Peak Cutoff",
+                            "High-Mid Peak Gain",
+                            "High-Mid Peak Q",
+                            "Low-Mid Peak Cutoff",
+                            "Low-Mid Peak Gain",
+                            "Low-Mid Peak Q",
+                            "Comp Threshold", 
+                            "Comp Ratio",
+                            "Comp Attack",
+                            "Comp Release",
+                            "Reverb Room Size",
+                            "Reverb Damping",
+                            "Reverb Wet Level",
+                            "Reverb Dry Level",
+                            "Reverb Width",
+                            "Gain Out dB", 
+                            "Pan"]
         self.sample_rate = sample_rate
         self.min_gain_dB = min_gain_dB
         self.max_gain_dB = max_gain_dB
@@ -248,16 +271,45 @@ class Mixer(torch.nn.Module):
         gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
         x = x * gain_lin  # apply gain (bs, num_tracks, seq_len)
 
-        # ------------- apply eq and compressor -------------
-        eq_low_gain_dB = p[..., 1]  # get eq low gain parameter
-        eq_mid_gain_dB = p[..., 2]  # get eq mid gain parameter
-        eq_high_gain_dB = p[..., 3]  # get eq high gain parameter
-        comp_ts_dB = p[..., 4]  # get comp threshold parameter
-        
-        eq_low_gain_dB = restore_from_0to1(eq_low_gain_dB, self.min_eq_gain_dB, self.max_eq_gain_dB)
-        eq_mid_gain_dB = restore_from_0to1(eq_mid_gain_dB, self.min_eq_gain_dB, self.max_eq_gain_dB)
-        eq_high_gain_dB = restore_from_0to1(eq_high_gain_dB, self.min_eq_gain_dB, self.max_eq_gain_dB)
-        comp_ts_dB = restore_from_0to1(comp_ts_dB, self.min_comp_ts_dB, self.max_comp_ts_dB)
+        # ------------- apply eq, compressor and reverb -------------
+        hp_eq_co_hz = p[..., 1]
+        lp_eq_co_hz = p[..., 2]
+        hs_eq_co_hz = p[..., 3]
+        hs_eq_gain_db = p[..., 4]
+        ls_eq_co_hz = p[..., 5]
+        ls_eq_gain_db = p[..., 6]
+        mh_eq_co_hz = p[..., 7]
+        mh_eq_gain_db = p[..., 8]
+        mh_eq_q = p[..., 9]
+        ml_eq_co_hz = p[..., 10]
+        ml_eq_gain_db = p[..., 11]
+        ml_eq_q = p[..., 12]
+        comp_ts_db = p[..., 13]
+        comp_ratio = p[..., 14]
+        comp_attack = p[..., 15]
+        comp_release = p[..., 16]
+        room_size = p[..., 17]
+        damping = p[..., 18]
+        wet_level = p[..., 19]
+        dry_level = p[..., 20]
+        width = p[..., 21]
+
+        hp_eq_co_hz = restore_from_0to1(hp_eq_co_hz, 0, 350)
+        lp_eq_co_hz = restore_from_0to1(lp_eq_co_hz, 3000, 22000)
+        hs_eq_co_hz = restore_from_0to1(hs_eq_co_hz, 1500, 16000)
+        hs_eq_gain_db = restore_from_0to1(hs_eq_gain_db, self.min_eq_gain_dB ,self.max_eq_gain_dB)
+        ls_eq_co_hz = restore_from_0to1(ls_eq_co_hz, 30, 450)
+        ls_eq_gain_db = restore_from_0to1(ls_eq_gain_db, self.min_eq_gain_dB ,self.max_eq_gain_dB)
+        mh_eq_co_hz = restore_from_0to1(mh_eq_co_hz, 600, 7000)
+        mh_eq_gain_db = restore_from_0to1(mh_eq_gain_db, self.min_eq_gain_dB ,self.max_eq_gain_dB)
+        mh_eq_q = restore_from_0to1(mh_eq_q, 0.5, 3)
+        ml_eq_co_hz = restore_from_0to1(ml_eq_co_hz, 200, 2500)
+        ml_eq_gain_db = restore_from_0to1(ml_eq_gain_db, self.min_eq_gain_dB ,self.max_eq_gain_dB)
+        ml_eq_q = restore_from_0to1(ml_eq_q, 0.5, 3)
+        comp_ts_db = restore_from_0to1(comp_ts_db, self.min_comp_ts_dB, self.max_comp_ts_dB)
+        comp_ratio = restore_from_0to1(comp_ratio, 1, 20)
+        comp_attack = restore_from_0to1(comp_attack, 1, 30)
+        comp_release = restore_from_0to1(comp_release, 100, 4000)
         
         x_copy = x.detach().clone()
         
@@ -266,16 +318,20 @@ class Mixer(torch.nn.Module):
         for i in range(bs):
           for j in range(num_tracks):
             board = pedalboard.Pedalboard([
-                pedalboard.PeakFilter(gain_db = eq_low_gain_dB[i][j], cutoff_frequency_hz = 160),
-                pedalboard.PeakFilter(gain_db = eq_mid_gain_dB[i][j], cutoff_frequency_hz = 650),
-                pedalboard.HighShelfFilter(gain_db = eq_high_gain_dB[i][j], cutoff_frequency_hz = 2500),
-                pedalboard.Compressor(threshold_db = comp_ts_dB[i][j], attack_ms = 16, release_ms = 160),
+                pedalboard.HighpassFilter(cutoff_frequency_hz = hp_eq_co_hz[i][j]),
+                pedalboard.LowpassFilter(cutoff_frequency_hz = lp_eq_co_hz[i][j]),
+                pedalboard.HighShelfFilter(gain_db = hs_eq_gain_db[i][j], cutoff_frequency_hz = hs_eq_co_hz[i][j]),
+                pedalboard.LowShelfFilter(gain_db = ls_eq_gain_db[i][j], cutoff_frequency_hz = ls_eq_co_hz[i][j]),
+                pedalboard.PeakFilter(cutoff_frequency_hz = mh_eq_co_hz[i][j], gain_db = mh_eq_gain_db[i][j], q = mh_eq_q[i][j]),
+                pedalboard.PeakFilter(cutoff_frequency_hz = ml_eq_co_hz[i][j], gain_db = ml_eq_gain_db[i][j], q = ml_eq_q[i][j]),
+                pedalboard.Compressor(threshold_db = comp_ts_db[i][j], ratio = comp_ratio[i][j], attack_ms = comp_attack[i][j], release_ms = comp_release[i][j]),
+                pedalboard.Reverb(room_size = room_size[i][j], damping = damping[i][j], wet_level = wet_level[i][j], dry_level = dry_level[i][j], width = width[i][j]),
             ])
             
             x[i][j] = torch.from_numpy(board(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
 
         # ------------- apply out gain -------------
-        gain_out_dB = p[..., 5]  # get gain parameter
+        gain_out_dB = p[..., 22]  # get gain parameter
         gain_out_dB = restore_from_0to1(gain_out_dB, self.min_gain_dB, self.max_gain_dB)
         gain_lin = 10 ** (gain_out_dB / 20.0)  # convert gain from dB scale to linear
         gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
@@ -286,7 +342,7 @@ class Mixer(torch.nn.Module):
         x = x.view(bs, num_tracks, 1, -1)  # (bs, num_tracks, 1, seq_len)
         x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
 
-        pan = p[..., 6]  # get pan parameter
+        pan = p[..., 23]  # get pan parameter
         pan_theta = pan * torch.pi / 2
         left_gain = torch.cos(pan_theta)
         right_gain = torch.sin(pan_theta)
@@ -302,10 +358,27 @@ class Mixer(torch.nn.Module):
         p = torch.cat(
             (
                 gain_in_dB.view(bs, num_tracks, 1),
-                eq_low_gain_dB.view(bs, num_tracks, 1),
-                eq_mid_gain_dB.view(bs, num_tracks, 1),
-                eq_high_gain_dB.view(bs, num_tracks, 1),
-                comp_ts_dB.view(bs, num_tracks, 1),
+                hp_eq_co_hz.view(bs, num_tracks, 1),
+                lp_eq_co_hz.view(bs, num_tracks, 1),
+                hs_eq_co_hz.view(bs, num_tracks, 1),
+                hs_eq_gain_db.view(bs, num_tracks, 1),
+                ls_eq_co_hz.view(bs, num_tracks, 1),
+                ls_eq_gain_db.view(bs, num_tracks, 1),
+                mh_eq_co_hz.view(bs, num_tracks, 1),
+                mh_eq_gain_db.view(bs, num_tracks, 1),
+                mh_eq_q.view(bs, num_tracks, 1),
+                ml_eq_co_hz.view(bs, num_tracks, 1),
+                ml_eq_gain_db.view(bs, num_tracks, 1),
+                ml_eq_q.view(bs, num_tracks, 1),
+                comp_ts_db.view(bs, num_tracks, 1),
+                comp_ratio.view(bs, num_tracks, 1),
+                comp_attack.view(bs, num_tracks, 1),
+                comp_release.view(bs, num_tracks, 1),
+                room_size.view(bs, num_tracks, 1),
+                damping.view(bs, num_tracks, 1),
+                wet_level.view(bs, num_tracks, 1),
+                dry_level.view(bs, num_tracks, 1),
+                width.view(bs, num_tracks, 1),
                 gain_out_dB.view(bs, num_tracks, 1),
                 pan.view(bs, num_tracks, 1),
             ),
