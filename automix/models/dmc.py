@@ -219,7 +219,7 @@ class Mixer(torch.nn.Module):
     ) -> None:
         super().__init__()
         
-        self.num_params = 7
+        self.num_params = 24
         self.param_names = ["Gain In dB", 
                             "High Pass Cutoff", 
                             "Low Pass Cutoff", 
