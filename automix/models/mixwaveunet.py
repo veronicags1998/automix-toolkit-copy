@@ -21,7 +21,7 @@ class DownsamplingBlock(torch.nn.Module):
             padding=padding,
         )
         self.bn = torch.nn.BatchNorm1d(ch_out)
-        self.prelu = torch.nn.PReLU(ch_out)
+        self.gelu = torch.nn.GELU(ch_out)
         self.conv2 = torch.nn.Conv1d(
             ch_out,
             ch_out,
@@ -33,7 +33,7 @@ class DownsamplingBlock(torch.nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn(x)
-        x = self.prelu(x)
+        x = self.gelu(x)
         x_ds = self.conv2(x)
         return x_ds, x
 
@@ -59,7 +59,7 @@ class UpsamplingBlock(torch.nn.Module):
             padding=padding,
         )
         self.bn = torch.nn.BatchNorm1d(ch_out)
-        self.prelu = torch.nn.PReLU(ch_out)
+        self.gelu = torch.nn.GELU(ch_out)
         self.us = torch.nn.Upsample(scale_factor=2)
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor):
@@ -77,7 +77,7 @@ class UpsamplingBlock(torch.nn.Module):
 
         x = self.conv(x)
         x = self.bn(x)
-        x = self.prelu(x)
+        x = self.gelu(x)
         return x
 
 
@@ -95,7 +95,7 @@ class MixWaveUNet(torch.nn.Module):
         ds_kernel: int = 13,
         us_kernel: int = 13,
         out_kernel: int = 5,
-        layers: int = 12,
+        layers: int = 10,
         ch_growth: int = 24,
         skip: str = "concat",
     ):
