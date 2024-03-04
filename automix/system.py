@@ -40,6 +40,8 @@ class System(pl.LightningModule):
                 )
             elif recon_loss == "l1":
                 self.recon_losses[recon_loss] = torch.nn.L1Loss()
+            elif recon_loss == "l2":
+                self.recon_losses[recon_loss] = torch.nn.MSELoss() 
             elif recon_loss == "sisdr":
                 self.recon_losses[recon_loss] = auraloss.time.SISDRLoss()
             elif recon_loss == "sd":
