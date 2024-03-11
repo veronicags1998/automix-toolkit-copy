@@ -325,7 +325,7 @@ class Mixer(torch.nn.Module):
                 pedalboard.PeakFilter(cutoff_frequency_hz = mh_eq_co_hz[i][j], gain_db = mh_eq_gain_db[i][j], q = mh_eq_q[i][j]),
                 pedalboard.PeakFilter(cutoff_frequency_hz = ml_eq_co_hz[i][j], gain_db = ml_eq_gain_db[i][j], q = ml_eq_q[i][j]),
                 pedalboard.Compressor(threshold_db = comp_ts_db[i][j], ratio = comp_ratio[i][j], attack_ms = comp_attack[i][j], release_ms = comp_release[i][j]),
-                pedalboard.Reverb(room_size = room_size[i][j], damping = damping[i][j], wet_level = wet_level[i][j], dry_level = dry_level[i][j], width = width[i][j]),
+                pedalboard.Reverb(room_size = room_size[i][j]/2, damping = damping[i][j]/2, wet_level = wet_level[i][j]/2, dry_level = dry_level[i][j], width = width[i][j]/2),
             ])
             
             x[i][j] = torch.from_numpy(board(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
