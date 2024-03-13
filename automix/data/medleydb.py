@@ -16,7 +16,7 @@ class MedleyDBDataset(torch.utils.data.Dataset):
         root_dirs: List[str],
         length: int,
         sample_rate: float,
-        indices: List[int] = [0, 100],
+        indices: List[int],
         max_num_tracks: int = 16,
         num_examples_per_epoch: int = 1000,
         buffer_size_gb: float = 2.0,
