@@ -95,7 +95,7 @@ class MixWaveUNet(torch.nn.Module):
         ds_kernel: int = 13,
         us_kernel: int = 13,
         out_kernel: int = 5,
-        layers: int = 8,
+        layers: int = 10,
         ch_growth: int = 24,
         skip: str = "concat",
     ):
