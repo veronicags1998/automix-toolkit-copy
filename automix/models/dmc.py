@@ -325,7 +325,7 @@ class Mixer(torch.nn.Module):
                 pedalboard.PeakFilter(cutoff_frequency_hz = mh_eq_co_hz[i][j], gain_db = mh_eq_gain_db[i][j], q = mh_eq_q[i][j]),
                 pedalboard.PeakFilter(cutoff_frequency_hz = ml_eq_co_hz[i][j], gain_db = ml_eq_gain_db[i][j], q = ml_eq_q[i][j]),
                 pedalboard.Compressor(threshold_db = comp_ts_db[i][j], ratio = comp_ratio[i][j], attack_ms = comp_attack[i][j], release_ms = comp_release[i][j]),
-                pedalboard.Reverb(room_size = room_size[i][j]/2, damping = damping[i][j]/2, wet_level = wet_level[i][j]/2, dry_level = dry_level[i][j], width = width[i][j]/2),
+                pedalboard.Reverb(room_size = room_size[i][j], damping = damping[i][j], wet_level = wet_level[i][j], dry_level = dry_level[i][j], width = width[i][j]),
             ])
             
             x[i][j] = torch.from_numpy(board(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
@@ -343,7 +343,7 @@ class Mixer(torch.nn.Module):
         x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
 
         pan = p[..., 23]  # get pan parameter
-        pan = restore_from_0to1(pan, 0.30, 0.60)
+        pan = restore_from_0to1(pan, 0.30, 0.70)
         pan_theta = pan * torch.pi / 2
         left_gain = torch.cos(pan_theta)
         right_gain = torch.sin(pan_theta)
