@@ -181,7 +181,7 @@ class ShortChunkCNN_Res(torch.nn.Module):
         x = self.dense1(x)
         # x = self.bn(x)
         x = self.relu(x)
-        # x = self.dropout(x)
+        x = self.dropout(x)
         # x = self.dense2(x)
         # x = nn.Sigmoid()(x)
 
