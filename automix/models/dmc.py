@@ -212,14 +212,14 @@ class Mixer(torch.nn.Module):
         sample_rate: float,
         min_gain_dB: int = -48.0,
         max_gain_dB: int = 12.0,
-        min_eq_gain_dB: int = -15.0,
-        max_eq_gain_dB: int = 15.0,   
-        min_comp_ts_dB = -20.0,
-        max_comp_ts_dB = 10.0,
+        min_eq_gain_dB: int = -5.0,
+        max_eq_gain_dB: int = 5.0,   
+        min_comp_ts_dB = -5.0,
+        max_comp_ts_dB = 5.0,
     ) -> None:
         super().__init__()
         
-        self.num_params = 24
+        self.num_params = 21
         self.param_names = ["Gain In dB", 
                             "High Pass Cutoff", 
                             "Low Pass Cutoff", 
@@ -238,10 +238,7 @@ class Mixer(torch.nn.Module):
                             "Comp Attack",
                             "Comp Release",
                             "Reverb Room Size",
-                            "Reverb Damping",
                             "Reverb Wet Level",
-                            "Reverb Dry Level",
-                            "Reverb Width",
                             "Gain Out dB", 
                             "Pan"]
         self.sample_rate = sample_rate
@@ -289,10 +286,8 @@ class Mixer(torch.nn.Module):
         comp_attack = p[..., 15]
         comp_release = p[..., 16]
         room_size = p[..., 17]
-        damping = p[..., 18]
-        wet_level = p[..., 19]
-        dry_level = p[..., 20]
-        width = p[..., 21]
+        wet_level = p[..., 18]
+
 
         hp_eq_co_hz = restore_from_0to1(hp_eq_co_hz, 0, 350)
         lp_eq_co_hz = restore_from_0to1(lp_eq_co_hz, 3000, 22000)
@@ -325,13 +320,13 @@ class Mixer(torch.nn.Module):
                 pedalboard.PeakFilter(cutoff_frequency_hz = mh_eq_co_hz[i][j], gain_db = mh_eq_gain_db[i][j], q = mh_eq_q[i][j]),
                 pedalboard.PeakFilter(cutoff_frequency_hz = ml_eq_co_hz[i][j], gain_db = ml_eq_gain_db[i][j], q = ml_eq_q[i][j]),
                 pedalboard.Compressor(threshold_db = comp_ts_db[i][j], ratio = comp_ratio[i][j], attack_ms = comp_attack[i][j], release_ms = comp_release[i][j]),
-                pedalboard.Reverb(room_size = room_size[i][j], damping = damping[i][j], wet_level = wet_level[i][j], dry_level = dry_level[i][j], width = width[i][j]),
+                pedalboard.Reverb(room_size = (room_size[i][j])/2, wet_level = (wet_level[i][j])/3),
             ])
             
             x[i][j] = torch.from_numpy(board(x_copy[i][j].cpu().numpy(), sample_rate = self.sample_rate))
 
         # ------------- apply out gain -------------
-        gain_out_dB = p[..., 22]  # get gain parameter
+        gain_out_dB = p[..., 19]  # get gain parameter
         gain_out_dB = restore_from_0to1(gain_out_dB, self.min_gain_dB, self.max_gain_dB)
         gain_lin = 10 ** (gain_out_dB / 20.0)  # convert gain from dB scale to linear
         gain_lin = gain_lin.view(bs, num_tracks, 1)  # reshape for multiplication
@@ -342,7 +337,7 @@ class Mixer(torch.nn.Module):
         x = x.view(bs, num_tracks, 1, -1)  # (bs, num_tracks, 1, seq_len)
         x = x.repeat(1, 1, 2, 1)  # (bs, num_tracks, 2, seq_len)
 
-        pan = p[..., 23]  # get pan parameter
+        pan = p[..., 20]  # get pan parameter
         pan = restore_from_0to1(pan, 0.30, 0.70)
         pan_theta = pan * torch.pi / 2
         left_gain = torch.cos(pan_theta)
@@ -376,10 +371,7 @@ class Mixer(torch.nn.Module):
                 comp_attack.view(bs, num_tracks, 1),
                 comp_release.view(bs, num_tracks, 1),
                 room_size.view(bs, num_tracks, 1),
-                damping.view(bs, num_tracks, 1),
                 wet_level.view(bs, num_tracks, 1),
-                dry_level.view(bs, num_tracks, 1),
-                width.view(bs, num_tracks, 1),
                 gain_out_dB.view(bs, num_tracks, 1),
                 pan.view(bs, num_tracks, 1),
             ),
