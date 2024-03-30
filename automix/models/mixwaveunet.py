@@ -43,7 +43,8 @@ class UpsamplingBlock(torch.nn.Module):
         self,
         ch_in: int,
         ch_out: int,
-        kernel_size: int = 5,
+        #kernel_size: int = 5,
+        kernel_size: int = 15,
         skip: str = "add",
     ):
         super().__init__()
